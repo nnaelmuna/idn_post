@@ -29,23 +29,23 @@ class _CashierScreenState extends State<CashierScreen> {
     _initBluetooth();
   }
 
-  // LOGIKA BLUETOOH
+  // LOGIKA BLUETOOTH
   Future<void> _initBluetooth() async {
-    // minta izin lokasi & bluetooth (WAIJB)
+    // minta izin lokasi dan bluetooth (WAJIB),
     await [
       Permission.bluetooth,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
-      Permission.location
+      Permission.location,
     ].request();
 
     List<BluetoothDevice> devices = [
-      // list ini akan otomatis terisi, jika blutooth di hp nyala dan sudah ada device yang siap dikoneksikan
+      // list ini akan otomatis terisi jika BT di hp menyala dan sudah ada devices yang siap dikoneksikan
     ];
     try {
       devices = await bluetooth.getBondedDevices();
     } catch (e) {
-      debugPrint("Error Bluetooth: $e");
+      debugPrint("Erorr Bluetooth: $e");
     }
 
     if (mounted) {
@@ -63,20 +63,21 @@ class _CashierScreenState extends State<CashierScreen> {
     });
   }
 
-  void _connectedToDevice(BluetoothDevice? device) {
-    // if kondisi utama, yang memeplopori if-if selanjutnya
+  void _connectToDevice(BluetoothDevice? device) {
+    // kondisi utama yang mempelopori if - if selanjutnya
     if (device != null) {
+      // if yang merupakan anak/cabang dari if utama,
+      // if ini memiliki sebuah kondisi yang menjawab pertanyaan/statement dari kondisi utama
       bluetooth.isConnected.then((isConnected) {
-        // if yang merupakan anak/cabang dari if utama
-        // if ini memiliki sebuah kondiis yg menjawab pertanyaan dari if pertama
         if (isConnected == false) {
           bluetooth.connect(device).catchError((error) {
-            // if ini wajib memiliki opini yang sama, seperti if kedua
+            // id ini wajib memiliki opini yang sama, sperti if kedua
             if (mounted) setState(() => _connected = false);
           });
-          // if ini akan dijalankan ketika if-if sebelumnya tidak terpenuhi
-          // if ini adlaah opsi terakhir yang akan dijlankan, ketika if-if sebelumnya tidak terpenuhi (tidak berjalan)
-          if (mounted) setState(() => _selectedDevice = device);
+          // statement didalam if ini akan di jalankan ketika if sebelumnya tdk terpenuhi
+          // if ini adalah opsi terakhir yang akan dijalankan ketika if-if sebelumnya tidak terpenuhi (tdk berjalan)
+          if (mounted)
+            setState(() => _selectedDevice = device); // nilai true nya
         }
       });
     }
@@ -84,27 +85,24 @@ class _CashierScreenState extends State<CashierScreen> {
 
   // LOGIKA CART
   void _addToCart(Product product) {
+    //
     setState(() {
-      // penghandle untuk user menambahkan produk
       _cart.update(
         // untuk mendefinisikan produk yang ada di menu
         product,
-        // logika matematis, yg dijalankan ketika satu produk sudah berada di keranjang, dan user klik keranjang kemudian nantinya jumlahnya akan ditambah 1
+        //  // logika matematis, yang dijalankan ketika 1 product sudah berada di keranjang, dan user klik +, yg nantinya jumlahnya akan ditambah 1
         (value) => value + 1,
-        // jika user tidak menambah lagi jumlah produk (jumlahnya hanya 1) dikeranjang, maka default dari jumlah barang tersebut adalah 1
-        ifAbsent: () => 1
+        // jika user tidak menambahkan lagi jumlah produk(hanya 1), maka default jumlah dari barang tersebut adalah satu
+        ifAbsent: () => 1,
       );
     });
   }
 
   void _removeFromCart(Product product) {
     setState(() {
-      // ! bang operator wajib ada valuenya
-      // note adalah kebalikannya
-      if (_cart.containsKey(product) && _cart[product]! > 1) { 
+      if (_cart.containsKey(product) && _cart[product]! > 1) {
         _cart[product] = _cart[product]! - 1;
       } else {
-        // ini akan dijalankan ketika codingan atas error
         _cart.remove(product);
       }
     });
@@ -120,74 +118,82 @@ class _CashierScreenState extends State<CashierScreen> {
   void _handlePrint() async {
     int total = _calculateTotal();
     if (total == 0) {
-      ScaffoldMessenger.of(context)
-      .showSnackBar(SnackBar(content: Text("Keranjang masih kosong!")));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Keranjang masih kosong!')));
     }
 
-    String txrId = "TRX-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}";
-    String qrData = "PAY:$txrId:$total";
+    String trxId =
+        "TRX-${DateTime.now().microsecondsSinceEpoch.toString().substring(8)}";
+    String qrData = "PAY:$trxId:$total";
     bool isPrinting = false;
 
-    // menyiapkan current date
+    // menyiapkan tanggal saat ini (current date)
     DateTime now = DateTime.now();
-    String formattedDate = DateFormat('dd-MM-yyyy HH:mm').format(now);
+    String formattedDate = DateFormat(
+      'dd-MM-yyyy HH:mm',
+    ).format(now); // menapilkan data yang rapih
 
     // LAYOUTING STRUK
     if (_selectedDevice != null && await bluetooth.isConnected == true) {
       // header struk
+      bluetooth.printNewLine(); // untuk ngasih enter
+      bluetooth.printCustom("IDN CAFE", 3, 1); // judul besar atau locasi center
       bluetooth.printNewLine();
-      bluetooth.printCustom("Oppetite", 3, 1); // judul besar (center)
-      bluetooth.printNewLine();
-      bluetooth.printCustom("Jl. Samarinda", 1, 1); // alamat
-      
-      // tanggal & id
+      bluetooth.printCustom(
+        "Jl. Bagus Dayeuh",
+        1,
+        1,
+      ); // alamat posisinya center
+
+      // tanggal dan id
       bluetooth.printNewLine();
       bluetooth.printLeftRight("Waktu:", formattedDate, 1);
 
       // daftar items
       bluetooth.printCustom("--------------------------------", 1, 1);
-      _cart.forEach((Product, qty) {
-        String priceTotal = formatRupiah(Product.price * qty);
-        // cetak nama barang x qty
-        bluetooth.printLeftRight("${Product.name} x${qty}", priceTotal, 1);
+      _cart.forEach((product, qty) {
+        String priceTotal = formatRupiah(product.price * qty);
+        //cetak nama barang dikali qty
+        // cetak nama barang
+        bluetooth.printLeftRight("${product.name} x${qty}", priceTotal, 1);
       });
       bluetooth.printCustom("--------------------------------", 1, 1);
 
-      // total & qr
+      // total & QR
       bluetooth.printLeftRight("TOTAL", formatRupiah(total), 3);
       bluetooth.printNewLine();
-      bluetooth.printCustom("Scan QR Di Bawah", 1, 1);
+      bluetooth.printCustom("SCAN QR DI BAWAH:", 1, 1);
       bluetooth.printQRcode(qrData, 200, 200, 1);
       bluetooth.printNewLine();
-      bluetooth.printCustom("Terimakasi", 1, 1);
+      bluetooth.printCustom("Thank You!", 1, 1);
       bluetooth.printNewLine();
       bluetooth.printNewLine();
 
       isPrinting = true;
     }
 
-    // untuk menampilakn pop up hasil QR Code
+    // untuk menampilkan modal hasil qr code (PopUp)
     _showQRModal(qrData, total, isPrinting);
-
   }
 
-  void _showQRModal(String qrData, int Total, bool isPrinting) {
+  void _showQRModal(String qrData, int total, bool isPrinting) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => QrResultModal(
         qrData: qrData,
-        total: Total,
+        total: total,
         isPrinting: isPrinting,
         onClosed: () => Navigator.pop(context),
-      ),
+      )
     );
   }
 
   @override
   Widget build(BuildContext context) {
-     return Scaffold(
+    return Scaffold(
       backgroundColor: Color(0xFFF5F7FA),
       appBar: AppBar(
         title: Text(
@@ -199,37 +205,32 @@ class _CashierScreenState extends State<CashierScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: IconThemeData(
-          color: Colors.black87,
-        ),
+        iconTheme: IconThemeData(color: Colors.black87),
         centerTitle: true,
-        // biar di tengah 
       ),
-      // ini code buat isi menunya sama printernya (1 body)
       body: Column(
         children: [
-          // DROPDOWN SELECT PRINTER
+          // dropdown select printer
           PrinterSelector(
-            devices: _devices, 
+            devices: _devices,
             selectedDevice: _selectedDevice,
             isConnected: _connected,
-            onSelected: _connectedToDevice,
+            onSelected: _connectToDevice,
           ),
-
+          
+          // Grid for product list
           Expanded(
             child: GridView.builder(
-              padding: EdgeInsets.symmetric(
-                horizontal: 16,
-              ),
+              padding: EdgeInsets.symmetric(horizontal: 16),
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.8,
-                crossAxisSpacing: 15,
-                mainAxisExtent: 15,
+                crossAxisCount: 2, // menampilkan 2 aja secara horizontal
+                childAspectRatio: 0.8, // jarak dari setiap grid
+                crossAxisSpacing: 15, // spasi antar grid tapi tdk searah dgn spacing yg asli
+                mainAxisSpacing: 15,
               ),
-              itemCount: menus.length,
+              itemCount: menus.length, // length ngambil keseluruhan dari menu
               itemBuilder: (context, index) {
-                final product = menus[index];
+                final product  = menus[index];
                 final qty = _cart[product] ?? 0;
 
                 // pemanggilan product list pada product card
@@ -238,13 +239,12 @@ class _CashierScreenState extends State<CashierScreen> {
                   qty: qty,
                   onAdd: () => _addToCart(product),
                   onRemove: () => _removeFromCart(product),
-                  
                 );
               },
             ),
           ),
 
-          // bottom sheet panel
+          // button sheet panel
           CheckoutPanel(
             total: _calculateTotal(),
             onPressed: _handlePrint,
